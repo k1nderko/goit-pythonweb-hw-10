@@ -16,12 +16,15 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 @router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def signup(user_data: UserCreate, db: Session = Depends(get_db)):
-    user = get_user_by_email(db, user_data.email)
-    if user:
+    existing_user = get_user_by_email(db, user_data.email)
+    if existing_user:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
 
     user = create_user(db, user_data)
-    await send_verification_email(user.email)
+
+    token = create_access_token(data={"sub": user.email})
+
+    await send_verification_email(user.email, token)
 
     return user
 
@@ -39,6 +42,7 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
         verify_user_email(db, email)
+
         return {"message": "Email successfully verified"}
     except JWTError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token")

@@ -1,6 +1,9 @@
 from pydantic import BaseModel, EmailStr
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class EmailSchema(BaseModel):
     email: EmailStr
@@ -11,9 +14,11 @@ conf = ConnectionConfig(
     MAIL_FROM=os.getenv("MAIL_FROM"),
     MAIL_PORT=465,
     MAIL_SERVER="smtp.meta.ua",
-    MAIL_STARTTLS=True,
-    MAIL_SSL_TLS=False,
-    USE_CREDENTIALS=True
+    MAIL_FROM_NAME="Rest API Service",
+    MAIL_STARTTLS=False,
+    MAIL_SSL_TLS=True,
+    USE_CREDENTIALS=True,
+    VALIDATE_CERTS=True,
 )
 
 async def send_verification_email(email: str, token: str):
