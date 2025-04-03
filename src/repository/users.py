@@ -10,7 +10,7 @@ def create_user(db: Session, user_data: UserCreate):
         return None
 
     hashed_password = hash_password(user_data.password)
-    new_user = User(email=user_data.email, hashed_password=hashed_password)
+    new_user = User(email=user_data.email, hashed_password=hashed_password, is_verified=False)
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
@@ -19,3 +19,12 @@ def create_user(db: Session, user_data: UserCreate):
 
 def get_user_by_email(db: Session, email: str):
     return db.query(User).filter(User.email == email).first()
+
+
+def verify_user_email(db: Session, email: str):
+    user = db.query(User).filter(User.email == email).first()
+    if user and not user.is_verified:
+        user.is_verified = True
+        db.commit()
+        db.refresh(user)
+    return user
