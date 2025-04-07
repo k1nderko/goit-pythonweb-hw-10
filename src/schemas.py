@@ -12,6 +12,7 @@ class UserResponse(BaseModel):
     email: str
     is_active: bool
     is_verified: bool
+    avatar: Optional[str] = None
 
     class Config:
         from_attributes = True

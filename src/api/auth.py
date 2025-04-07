@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request, File, UploadFile
+from src.services.limiter import limiter
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -9,6 +10,9 @@ from src.services.auth import verify_password, create_access_token
 from src.database.models import User
 from src.services.auth import SECRET_KEY, ALGORITHM
 from src.conf.mail import send_verification_email
+from src.services.cloudinary_service import upload_avatar
+import shutil
+import os
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
@@ -78,3 +82,29 @@ def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_
         return user
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
+
+@router.get("/me", response_model=UserResponse)
+@limiter.limit("5/minute")
+async def read_current_user(request: Request, current_user: User = Depends(get_current_user)):
+    return current_user
+
+@router.post("/upload-avatar", response_model=UserResponse)
+async def upload_user_avatar(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    file: UploadFile = File(...)
+):
+    print("Upload endpoint triggered")
+    temp_file_path = f"temp_{file.filename}"
+    with open(temp_file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    avatar_url = upload_avatar(temp_file_path, public_id=f"user_{current_user.id}")
+
+    os.remove(temp_file_path)
+
+    current_user.avatar = avatar_url
+    db.commit()
+    db.refresh(current_user)
+
+    return current_user
